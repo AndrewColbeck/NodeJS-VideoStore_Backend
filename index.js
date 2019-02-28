@@ -1,90 +1,41 @@
-// Setup Express Package for Server
-const express = require('express');
-const app = express();
+// SERVER
+const express = require('express'); // Server Module
+const helmet = require('helmet'); // Adds Headers to HTTP messages
+const Joi = require('joi'); // Module for Object Validation
+const app = express(); 
+const genres = require('./routes/genres');
+const home = require('./routes/home');
 app.use(express.json()); // Enable JSON functionality
+app.use(express.urlencoded({ extended: true })); // key=value&key=value (HTML Form submission)
+app.use(helmet());
+app.use('/api/genres', genres);
+app.use('/', home);
 
-// Setup Joi Module for Object Validation
-const Joi = require('joi');
+// ASSETS
+app.use(express.static('public')); // Use all assets in public folder statically
 
-// Setup Port Allocation from Global Variable
-const port = process.env.PORT || 3000;
+// DEBUGGERS
+const startupDebugger = require('debug')('app:startup'); // export DEBUG=app:startup or DEBUG=App:*
+const morgan = require('morgan'); // Logs all HTTP Requests
+const logger = require('./middleware/Logger');
+const authenticator = require('./middleware/Authenticator'); // TODO: Add authentication
+if (app.get('env') === 'development'){
+    // Note: to change environment: Terminal$ export NODE_ENV=production
+    app.use(morgan('tiny'));
+    startupDebugger('Morgan enabled...');
+    app.use(logger); // Middleware function to begin log requests
+    app.use(authenticator); // Middleware function to authenticate  
+}
+
+// CONFIGURATION
+
+
+// PORT ASSIGNMENT
+const port = process.env.PORT || 3000; // export PORT=1234
 app.listen(port, () => console.log(`Listening on port ${port}...`));
 
-// GENRES
-const genres = [
-    { id: 1, name: "Drama" },
-    { id: 2, name: "Horror" },
-    { id: 3, name: "SciFi" },
-    { id: 4, name: "Comedy" },
-];
 
-// BROWSE A GENRE
-app.get('/', (req, res) =>{ // On request of ROOT directory
-    res.send('Welcome to Vidly');
-});
-app.get('/api/genres', (req, res) =>{ // On request of localhost:3000/api/genres
-    res.send(genres);
-})
 
-app.get('/api/genres/:id', (req,res) =>{ //Returns the genre object if found in the array
-    const genre = genres.find(g => g.id === parseInt(req.params.id));
-    if(!genre) {
-        return res.status(404).send('The genre with the given ID was not found');
-    } else
-        res.send(genre);
-});
 
-// ADD A GENRE
-app.post('/api/genres', (req,res) => {
-    const { error } = validateGenre(req.body); // Object destructured: We take only the error property
-    if (error){
-        return res.status(400).send(error.details[0].message); // 400 Bad Request
-    }
-    
-    const genre = { // If Genre passes validation, add to array
-        id: genres.length + 1,
-        name: req.body.name
-    }
-    genres.push(genre);
-    res.send(genre);
-});
 
-// UPDATE A GENRE
-app.put('/api/genres/:id', (req,res) =>{
-    const genre = genres.find(g => g.id === parseInt(req.params.id)); // Find genre by id
-    if(!genre) {
-        return res.status(404).send('The genre with the given ID was not found');
-    }
-    const { error } = validateGenre(req.body); // Object destructured: We take only the error property
-    if (error){
-        return res.status(400).send(error.details[0].message); // 400 Bad Request
-    }
-
-    genre.name = req.body.name; // Update and return the genre if genre ok
-    res.send(genre);
-    
-})
-// DELETE A GENRE
-app.delete('/api/genres/:id', (req,res) =>{
-    // Look up Course (if Not existing, return 404)
-    const genre = genres.find(g => g.id === parseInt(req.params.id)); // Find Genre by id
-    if(!genre) {
-        return res.status(404).send('The genre with the given ID was not found');
-    }
-    // Delete
-    const index = genres.indexOf(genre);
-    genres.splice(index, 1);
-
-    // Return the genre that was deleted
-    res.send(genre);
-
-})
-
-// VALIDATE GENRE OBJECT
-function validateGenre(genre){
-    const schema = { // Schema for validating input (see Joi on npmjs)
-        name: Joi.string().min(1).required()
-    }
-    return result = Joi.validate(genre, schema);  
-}
 
